@@ -64,6 +64,19 @@ export nano_installdir="${SRC_DIR}/nano_install"
 # --with-multilib-list   rmprofile only (Cortex-M/R). aprofile roughly doubles
 #                        an already multi-hour build; see README.
 # no --tag               Arm asks that their release branding not be reused
+#
+# ac_cv_header_sys_mman_h=no: bare-metal arm-none-eabi has no sys/mman.h, but
+# libgcc's configure detected one and libgcov.h then failed to compile. The
+# probe runs the *host* preprocessor: the conda activation exports
+# CPP=x86_64-conda-linux-gnu-cpp, and GCC's BASE_TARGET_EXPORTS (which target
+# libraries are configured under) sets CC/CFLAGS/CPPFLAGS for the target but
+# never CPP, so the ambient host value reaches AC_CHECK_HEADERS. Unsetting CPP
+# in this script does not work: GCC's BUILD_EXPORTS re-exports it as
+# CPP="$(CPP_FOR_BUILD)" from a Makefile variable captured at configure time.
+# Presetting the autoconf cache result cannot be overridden that way. Passed
+# via --config-flags-gcc rather than exported so it reaches only GCC's
+# configure: binutils and gdb are host programs that genuinely have the header
+# and use it (gdb's scoped_mmap and DWARF index cache).
 "${SRC_DIR}/src/gnu-devtools-for-arm/build-baremetal-toolchain.sh" \
   --target=arm-none-eabi \
   --srcdir="${SRC_DIR}/src" \
@@ -75,6 +88,7 @@ export nano_installdir="${SRC_DIR}/nano_install"
   --disable-qemu \
   --no-check-gdb \
   --config-flags-gcc=--with-multilib-list=rmprofile \
+  --config-flags-gcc=ac_cv_header_sys_mman_h=no \
   --bugurl="https://github.com/EliaCereda/gcc-arm-none-eabi/issues"
 
 # Strip host binaries before packaging. Target libraries (newlib .a) must keep
