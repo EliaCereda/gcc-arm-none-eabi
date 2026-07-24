@@ -10,6 +10,9 @@ context:
   # Arm's build scripts are not part of the source snapshot; they live in their
   # own MIT-licensed repo and are pinned separately.
   devtools_rev: v1.6.3
+  # zstd is a required component of the build (gcc is configured --with-zstd)
+  # but Arm's source snapshot does not ship it, so it is fetched separately.
+  zstd_version: "1.5.7"
 
 package:
   name: gcc-arm-none-eabi
@@ -26,6 +29,12 @@ source:
   - git: https://git.gitlab.arm.com/tooling/gnu-devtools-for-arm.git
     rev: ${{ devtools_rev }}
     target_directory: src/gnu-devtools-for-arm
+  # The build scripts require a zstd source tree (they build libzstd.a and
+  # configure gcc --with-zstd) but Arm's snapshot omits it, so the build fails
+  # at startup with "cannot find zstd source" without this.
+  - url: https://github.com/facebook/zstd/releases/download/v${{ zstd_version }}/zstd-${{ zstd_version }}.tar.gz
+    sha256: eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
+    target_directory: src/zstd
 
 build:
   number: 0
@@ -101,5 +110,7 @@ about:
     - src/newlib-cygwin/COPYING.NEWLIB
     - src/newlib-cygwin/COPYING.LIBGLOSS
     - src/gnu-devtools-for-arm/LICENSE.txt
+    # zstd is statically linked into the host binaries (gcc --with-zstd).
+    - src/zstd/LICENSE
   homepage: https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain
   repository: https://gitlab.arm.com/tooling/gnu-devtools-for-arm
