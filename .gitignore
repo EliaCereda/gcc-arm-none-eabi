@@ -1,0 +1,6 @@
+output/
+.pixi/
+*.conda
+.DS_Store
+PLAN.md
+output-build.log

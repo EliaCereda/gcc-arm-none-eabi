@@ -1,0 +1,12 @@
+[workspace]
+name = "gcc-arm-none-eabi"
+description = "Recipe repo for the Arm GNU Toolchain (arm-none-eabi) conda package"
+channels = ["conda-forge"]
+platforms = ["linux-64", "linux-aarch64"]
+
+[dependencies]
+rattler-build = ">=0.40"
+
+[tasks]
+build = "rattler-build build --recipe recipe/recipe.yaml --output-dir output"
+test = "rattler-build test --package-file"

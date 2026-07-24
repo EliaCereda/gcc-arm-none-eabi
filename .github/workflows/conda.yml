@@ -1,0 +1,74 @@
+name: conda
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, platform: linux-64, arch: x86_64 }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64, arch: aarch64 }
+    runs-on: ${{ matrix.os }}
+    # 360 is the GitHub-hosted maximum. This build uses a large fraction of it:
+    # the toolchain is rebuilt once per multilib. See README if it starts to
+    # time out.
+    timeout-minutes: 360
+    permissions:
+      contents: write # to post the build log as a commit comment on failure
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rattler-build
+        run: |
+          sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.arch }}-unknown-linux-musl" \
+            -o /usr/local/bin/rattler-build
+          sudo chmod +x /usr/local/bin/rattler-build
+          rattler-build --version
+      - name: Build package
+        run: |
+          set -o pipefail
+          rattler-build build --recipe recipe/recipe.yaml --output-dir output 2>&1 | tee build.log
+      - name: Post build log as commit comment
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "CI failure on \`${{ matrix.platform }}\` (run ${GITHUB_RUN_ID}), last part of build.log:"
+            echo '```'
+            tail -c 60000 build.log
+            echo '```'
+          } | python3 -c 'import json,sys; print(json.dumps({"body": sys.stdin.read()}))' > comment.json
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+            --data-binary @comment.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.platform }}
+          path: output/**/*.conda
+          if-no-files-found: error
+
+  upload:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing to prefix.dev, no API key needed
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          run-install: false
+      - name: Upload packages to prefix.dev
+        run: |
+          for pkg in $(find . -name '*.conda'); do
+            pixi exec rattler-build upload prefix -c eliacereda "$pkg"
+          done
