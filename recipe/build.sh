@@ -14,6 +14,30 @@ export ac_cv_search_tgetent=no ac_cv_search_waddstr=no \
 # LDFLAGS rather than replacing them.
 export LDFLAGS="${LDFLAGS:-} -static-libstdc++ -static-libgcc"
 
+# The build scripts stage gmp/mpfr/mpc/isl/zstd into $builddir/host-tools and
+# link them statically. Arm's scripts never constrain pkg-config, so on a
+# machine that has development packages installed, a component can silently
+# resolve a system library instead: binutils detects zstd *only* via
+# pkg-config (its configure gets no --with-zstd from these scripts), found
+# /usr/lib64/pkgconfig/libzstd.pc, and built with ZSTD_LIBS=-lzstd and an empty
+# ZSTD_CFLAGS -- which both fails ("zstd.h: No such file or directory") and
+# would have linked a system library that is not there at runtime.
+#
+# PKG_CONFIG_LIBDIR *replaces* the default search path (PKG_CONFIG_PATH only
+# prepends to it), so pointing it at an empty directory takes /usr/lib64 out of
+# consideration for every component, not just zstd.
+export PKG_CONFIG_LIBDIR="${SRC_DIR}/empty-pkgconfig"
+mkdir -p "${PKG_CONFIG_LIBDIR}"
+
+# Hand binutils the in-tree zstd directly. Its configure honours these as
+# documented overrides ("C compiler flags for ZSTD, overriding pkg-config") and
+# skips the pkg-config query entirely when ZSTD_CFLAGS is non-empty. The zstd
+# stage installs only headers and the static lib -- it never writes a
+# libzstd.pc -- so there is nothing for pkg-config to find in-tree anyway.
+builddir="${SRC_DIR}/build-arm-none-eabi"
+export ZSTD_CFLAGS="-I${builddir}/host-tools/include"
+export ZSTD_LIBS="-L${builddir}/host-tools/lib -lzstd"
+
 # build-baremetal-toolchain.sh takes the install location from the environment
 # (there is no command-line flag for it) and configures gcc with an absolute
 # --prefix="$installdir", so this installs straight into the conda build prefix
@@ -43,7 +67,7 @@ export nano_installdir="${SRC_DIR}/nano_install"
 "${SRC_DIR}/src/gnu-devtools-for-arm/build-baremetal-toolchain.sh" \
   --target=arm-none-eabi \
   --srcdir="${SRC_DIR}/src" \
-  --builddir="${SRC_DIR}/build-arm-none-eabi" \
+  --builddir="${builddir}" \
   -j "${CPU_COUNT}" \
   --release \
   --no-package \
