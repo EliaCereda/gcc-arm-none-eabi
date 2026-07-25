@@ -38,6 +38,15 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   # to Xcode's BSD gm4 ("unrecognized option --gnu", SIGPIPE, Error 141).
   # Pin it to conda's GNU m4 explicitly; bison honours $M4 over any search.
   export M4="${BUILD_PREFIX}/bin/m4"
+
+  # libtool's nm search settles on "nm -B", but its symbol-parse probe then
+  # fails on that output ("checking command to parse ... nm -B output ...
+  # failed" in the log, versus "... nm output ... ok" without the flag),
+  # leaving an empty global_symbol_pipe. lto-plugin's libtool then emits a
+  # pipeline with a blank stage ("nm -B ... | | sed ...") and dies with a
+  # syntax error at liblto_plugin.la. Preset the search's cache variable to
+  # conda's nm without -B; the probe is proven to parse that.
+  export lt_cv_path_NM="${NM:-nm}"
 else
   # Host tools must depend on glibc only. Append to the conda activation's
   # LDFLAGS rather than replacing them.
