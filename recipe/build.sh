@@ -10,9 +10,18 @@ export ac_cv_search_tgetent=no ac_cv_search_waddstr=no \
        ac_cv_header_curses_h=no ac_cv_header_ncurses_h=no \
        ac_cv_header_ncurses_ncurses_h=no ac_cv_header_ncurses_curses_h=no
 
-# Host tools must depend on glibc only. Append to the conda activation's
-# LDFLAGS rather than replacing them.
-export LDFLAGS="${LDFLAGS:-} -static-libstdc++ -static-libgcc"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # macOS links the system libc++/libSystem, which is always present -- no
+  # static-linking flags needed for host portability. Documentation is a
+  # different story: binutils' texinfo sources want makeinfo 6.x (Arm's own
+  # README calls this out) and we delete all docs from the package anyway, so
+  # stub makeinfo out entirely.
+  export MAKEINFO=true
+else
+  # Host tools must depend on glibc only. Append to the conda activation's
+  # LDFLAGS rather than replacing them.
+  export LDFLAGS="${LDFLAGS:-} -static-libstdc++ -static-libgcc"
+fi
 
 # The conda compiler activation exports CPP pointing at the *host*
 # preprocessor. GCC's BASE_TARGET_EXPORTS (which target libraries such as
@@ -81,6 +90,10 @@ export nano_installdir="${SRC_DIR}/nano_install"
 # --no-package           we want the install tree, not distribution tarballs
 # --with-multilib-list   rmprofile only (Cortex-M/R). aprofile roughly doubles
 #                        an already multi-hour build; see README.
+# --disable-libcc1       gdb's compile-anything plugin — useless for an
+#                        embedded cross toolchain, and a host plugin .so has
+#                        no place in a package whose binaries must be
+#                        self-contained
 # no --tag               Arm asks that their release branding not be reused
 "${SRC_DIR}/src/gnu-devtools-for-arm/build-baremetal-toolchain.sh" \
   --target=arm-none-eabi \
@@ -93,6 +106,7 @@ export nano_installdir="${SRC_DIR}/nano_install"
   --disable-qemu \
   --no-check-gdb \
   --config-flags-gcc=--with-multilib-list=rmprofile \
+  --config-flags-gcc=--disable-libcc1 \
   --bugurl="https://github.com/EliaCereda/gcc-arm-none-eabi/issues"
 
 # Strip host binaries before packaging. Target libraries (newlib .a) must keep

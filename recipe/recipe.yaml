@@ -37,7 +37,7 @@ source:
     target_directory: src/zstd
 
 build:
-  number: 0
+  number: 1
   prefix_detection:
     # Do NOT rewrite the build prefix inside the ELF binaries: GCC's driver
     # constant-folds strlen() of the compiled-in prefix, so shortening the
@@ -59,8 +59,18 @@ requirements:
     - gawk
     - sed
     - bison
+    # bison shells out to GNU m4 when grammars are regenerated at build time;
+    # without it in the env, macOS falls back to Xcode's BSD gm4
+    - m4
     - flex
-    - texinfo
+    # texinfo only on linux: on macOS binutils' docs want makeinfo 6.x, so
+    # build.sh stubs makeinfo out there (docs are deleted from the package
+    # either way).
+    - if: linux
+      then: texinfo
+    # The build scripts use greadlink on Darwin (set_darwin_envvars).
+    - if: osx
+      then: coreutils
     - gperf
     - diffutils
     - bc
@@ -74,6 +84,15 @@ requirements:
     # none is found, and any conda .so dependency would become a NEEDED entry
     # that cannot be resolved at runtime (binary prefix relocation is off, so
     # baked rpaths are dead). Host binaries must depend on glibc only.
+  # The host binaries link libstdc++/libgcc statically (see build.sh), so the
+  # compilers' run exports are not real runtime requirements — only the
+  # sysroot's __glibc export is. On macOS the binaries link the system
+  # libc++, not conda's libcxx, so clangxx's export does not apply either.
+  ignore_run_exports:
+    by_name:
+      - libstdcxx
+      - libgcc
+      - libcxx
 
 tests:
   - script:

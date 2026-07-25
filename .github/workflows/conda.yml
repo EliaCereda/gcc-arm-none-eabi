@@ -2,7 +2,7 @@ name: conda
 
 on:
   push:
-    branches: [main]
+    branches: [main, macos]  # macos: temporary while the branch iterates
     tags: ["v*"]
   pull_request:
 
@@ -12,8 +12,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, platform: linux-64, arch: x86_64 }
-          - { os: ubuntu-24.04-arm, platform: linux-aarch64, arch: aarch64 }
+          - { os: ubuntu-24.04, platform: linux-64, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-musl }
+          - { os: macos-15, platform: osx-arm64, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, platform: osx-64, target: x86_64-apple-darwin }
     runs-on: ${{ matrix.os }}
     # 360 is the GitHub-hosted maximum. This build uses a large fraction of it:
     # the toolchain is rebuilt once per multilib. See README if it starts to
@@ -25,15 +27,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Free runner disk space
         # The toolchain build needs ~15 GB (per-multilib obj trees + a 2.7 GB
-        # install); hosted runners have too little free space with the
-        # preinstalled software present.
+        # install); hosted Linux runners have too little free space with the
+        # preinstalled software present. macOS runners have plenty.
+        if: runner.os == 'Linux'
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
             /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
       - name: Install rattler-build
         run: |
-          sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.arch }}-unknown-linux-musl" \
+          sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.target }}" \
             -o /usr/local/bin/rattler-build
           sudo chmod +x /usr/local/bin/rattler-build
           rattler-build --version
