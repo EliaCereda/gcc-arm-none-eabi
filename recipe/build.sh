@@ -17,6 +17,22 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   # README calls this out) and we delete all docs from the package anyway, so
   # stub makeinfo out entirely.
   export MAKEINFO=true
+
+  # The prerequisite libraries in Arm's snapshot bundle 2018-era
+  # config.sub/config.guess that predate the arm64-apple triple, so mpfr's
+  # configure aborts with "config.sub arm64-apple-darwin20.0.0 failed".
+  # Refresh every copy from conda's gnuconfig. rm first: some trees ship
+  # them read-only, and cp alone would fail on the second run.
+  find src -name config.sub -o -name config.guess | while read -r f; do
+    rm -f "$f"
+    cp "${BUILD_PREFIX}/share/gnuconfig/$(basename "$f")" "$f"
+  done
+
+  # The zlib bundled with the binutils and gcc trees #defines fdopen to NULL
+  # on macOS (a pre-OS-X workaround, removed in later upstream zlib), which
+  # breaks the fdopen declaration in the modern SDK's _stdio.h ("expected
+  # ')'"). Drop it, as the gap-riscv-gnu-toolchain recipe does.
+  find src -path '*/zlib/zutil.h' -exec sed -i '/define fdopen(fd,mode) NULL/d' {} +
 else
   # Host tools must depend on glibc only. Append to the conda activation's
   # LDFLAGS rather than replacing them.

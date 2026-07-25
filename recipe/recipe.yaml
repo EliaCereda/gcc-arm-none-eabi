@@ -71,6 +71,10 @@ requirements:
     # The build scripts use greadlink on Darwin (set_darwin_envvars).
     - if: osx
       then: coreutils
+    # Modern config.sub/config.guess for the snapshot's 2018-era prerequisite
+    # libraries, whose bundled copies predate the arm64-apple triple.
+    - if: osx
+      then: gnuconfig
     - gperf
     - diffutils
     - bc
