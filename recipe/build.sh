@@ -32,6 +32,12 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   # breaks the fdopen declaration in the modern SDK's _stdio.h ("expected
   # ')'"). Drop it, as the gap-riscv-gnu-toolchain recipe does.
   find src -path '*/zlib/zutil.h' -exec sed -i '/define fdopen(fd,mode) NULL/d' {} +
+
+  # bison regenerates binutils' windres grammars (defparse.y, rcparse.y) and
+  # searches for its m4 by the name "gm4" first, which on the runner resolves
+  # to Xcode's BSD gm4 ("unrecognized option --gnu", SIGPIPE, Error 141).
+  # Pin it to conda's GNU m4 explicitly; bison honours $M4 over any search.
+  export M4="${BUILD_PREFIX}/bin/m4"
 else
   # Host tools must depend on glibc only. Append to the conda activation's
   # LDFLAGS rather than replacing them.
