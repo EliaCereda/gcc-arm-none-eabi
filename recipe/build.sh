@@ -12,11 +12,10 @@ export ac_cv_search_tgetent=no ac_cv_search_waddstr=no \
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
   # macOS links the system libc++/libSystem, which is always present -- no
-  # static-linking flags needed for host portability. Documentation is a
-  # different story: binutils' texinfo sources want makeinfo 6.x (Arm's own
-  # README calls this out) and we delete all docs from the package anyway, so
-  # stub makeinfo out entirely.
-  export MAKEINFO=true
+  # static-linking flags needed for host portability. (Docs are built with
+  # conda's texinfo on every platform; a MAKEINFO=true stub does not work,
+  # because configure probes `$MAKEINFO --version` and substitutes the
+  # `missing` script for anything that fails it.)
 
   # The prerequisite libraries in Arm's snapshot bundle 2018-era
   # config.sub/config.guess that predate the arm64-apple triple, so mpfr's

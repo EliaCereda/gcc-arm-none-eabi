@@ -63,11 +63,12 @@ requirements:
     # without it in the env, macOS falls back to Xcode's BSD gm4
     - m4
     - flex
-    # texinfo only on linux: on macOS binutils' docs want makeinfo 6.x, so
-    # build.sh stubs makeinfo out there (docs are deleted from the package
-    # either way).
-    - if: linux
-      then: texinfo
+    # Real makeinfo everywhere: Arm's git snapshot ships no prebuilt .info
+    # files, so binutils genuinely builds its docs (deleted from the package
+    # afterwards). Stubbing MAKEINFO=true does not work — configure probes
+    # `$MAKEINFO --version`, rejects the silent stub, and substitutes the
+    # `missing` script, which exits 127 at doc/bfd.info.
+    - texinfo
     # The build scripts use greadlink on Darwin (set_darwin_envvars).
     - if: osx
       then: coreutils
