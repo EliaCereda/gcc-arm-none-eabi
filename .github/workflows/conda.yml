@@ -23,6 +23,14 @@ jobs:
       contents: write # to post the build log as a commit comment on failure
     steps:
       - uses: actions/checkout@v4
+      - name: Free runner disk space
+        # The toolchain build needs ~15 GB (per-multilib obj trees + a 2.7 GB
+        # install); hosted runners have too little free space with the
+        # preinstalled software present.
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
       - name: Install rattler-build
         run: |
           sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.arch }}-unknown-linux-musl" \
