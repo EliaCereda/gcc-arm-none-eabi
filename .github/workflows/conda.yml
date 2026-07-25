@@ -34,6 +34,14 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
             /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
+      - name: Install GNU build helpers (macOS)
+        # Arm's set_darwin_envvars adds the Homebrew paths for gnu-getopt and
+        # the g-prefixed coreutils (greadlink, gpr) to PATH by itself; the
+        # tools just have to be installed. BSD getopt cannot parse the
+        # scripts' long options ("getopt: illegal option -- n"), and there is
+        # no GNU getopt on conda-forge for macOS.
+        if: runner.os == 'macOS'
+        run: brew install gnu-getopt coreutils
       - name: Install rattler-build
         run: |
           sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.target }}" \
