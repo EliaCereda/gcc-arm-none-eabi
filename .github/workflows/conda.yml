@@ -2,7 +2,7 @@ name: conda
 
 on:
   push:
-    branches: [main, macos]  # macos: temporary while the branch iterates
+    branches: [main]
     tags: ["v*"]
   pull_request:
 
@@ -15,7 +15,9 @@ jobs:
           - { os: ubuntu-24.04, platform: linux-64, target: x86_64-unknown-linux-musl }
           - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-musl }
           - { os: macos-15, platform: osx-arm64, target: aarch64-apple-darwin }
-          - { os: macos-15-intel, platform: osx-64, target: x86_64-apple-darwin }
+          # osx-64 is absent: macos-15-intel cannot finish the build inside
+          # the 6 h hosted-runner ceiling (timed out twice, once with ample
+          # disk). A ccache-based attempt lives on the osx-64-ccache branch.
     runs-on: ${{ matrix.os }}
     # 360 is the GitHub-hosted maximum. This build uses a large fraction of it:
     # the toolchain is rebuilt once per multilib. See README if it starts to

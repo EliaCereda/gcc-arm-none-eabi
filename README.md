@@ -3,7 +3,9 @@
 Builds the [Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain)
 (`arm-none-eabi` GCC, binutils, newlib, newlib-nano and GDB for bare-metal Arm
 targets) as a relocatable conda package with [rattler-build](https://rattler.build),
-for `linux-64` and `linux-aarch64`.
+for `linux-64`, `linux-aarch64` and `osx-arm64`. (`osx-64` does not fit the
+6-hour GitHub-hosted runner ceiling; an attempt to close the gap with ccache
+lives on the `osx-64-ccache` branch.)
 
 The toolchain is compiled **from source** — from Arm's official source snapshot,
 using Arm's own build scripts
@@ -19,7 +21,7 @@ conda environment.
 ```toml
 [workspace]
 channels = ["https://prefix.dev/eliacereda", "conda-forge"]
-platforms = ["linux-64", "linux-aarch64"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 
 [dependencies]
 gcc-arm-none-eabi = "15.2.*"
@@ -95,8 +97,8 @@ straight into the conda build prefix.
 ## CI and publishing
 
 GitHub Actions ([.github/workflows/conda.yml](.github/workflows/conda.yml)) builds
-both architectures natively on hosted runners (`ubuntu-24.04`, `ubuntu-24.04-arm`)
-on every push/PR. Pushing a `v*` tag additionally uploads the packages to the
+every platform natively on hosted runners (`ubuntu-24.04`, `ubuntu-24.04-arm`,
+`macos-15`) on every push/PR. Pushing a `v*` tag additionally uploads the packages to the
 `eliacereda` channel on prefix.dev, authenticating via OIDC trusted publishing
 (the repository is registered as a Trusted Publisher on prefix.dev; no stored
 API key).
