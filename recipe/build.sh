@@ -139,6 +139,14 @@ export nano_installdir="${SRC_DIR}/nano_install"
   --config-flags-gcc=--disable-libcc1 \
   --bugurl="https://github.com/EliaCereda/gcc-arm-none-eabi/issues"
 
+# The obj trees, staged host tools and nano staging area total ~20 GB and are
+# dead weight once the toolchain is installed into $PREFIX -- but they are
+# still on disk while rattler-build packages the 2.7 GB install, and the
+# osx-arm64 runner ran out of space exactly there ("Could not open or create,
+# or write to file: No space left on device" during packaging, after a fully
+# successful build). Drop them first.
+rm -rf "${builddir}/obj" "${builddir}/host-tools" "${SRC_DIR}/nano_install"
+
 # Strip host binaries before packaging. Target libraries (newlib .a) must keep
 # their symbols — only bin/ and libexec/. STRIP is the conda binutils' host
 # strip from the compiler activation.
