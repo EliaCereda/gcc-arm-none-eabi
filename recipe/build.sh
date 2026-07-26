@@ -39,6 +39,21 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   # Pin it to conda's GNU m4 explicitly; bison honours $M4 over any search.
   export M4="${BUILD_PREFIX}/bin/m4"
 
+  # Opt-in ccache (the osx-64 CI leg cannot fit the 6 h runner ceiling cold;
+  # a warm cache of the host-side clang compiles brings it under). Masquerade
+  # symlinks named after the compilers intercept PATH lookups; CCACHE_PATH
+  # tells ccache where the real ones live so it does not recurse. Target-lib
+  # compiles via the freshly built xgcc use absolute paths and bypass this.
+  if [[ -n "${CCACHE_DIR:-}" ]] && command -v ccache >/dev/null; then
+    ccache_bin="${SRC_DIR}/ccache-bin"
+    mkdir -p "${ccache_bin}"
+    for tool in clang clang++ cc c++ "$(basename "${CC:-clang}")" "$(basename "${CXX:-clang++}")"; do
+      ln -sf "$(command -v ccache)" "${ccache_bin}/${tool}"
+    done
+    export CCACHE_PATH="${BUILD_PREFIX}/bin:/usr/bin"
+    export PATH="${ccache_bin}:${PATH}"
+  fi
+
   # libtool's nm search settles on "nm -B", but its symbol-parse probe then
   # fails on that output ("checking command to parse ... nm -B output ...
   # failed" in the log, versus "... nm output ... ok" without the flag),

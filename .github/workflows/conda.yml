@@ -2,7 +2,7 @@ name: conda
 
 on:
   push:
-    branches: [main, macos]  # macos: temporary while the branch iterates
+    branches: [osx-64-ccache]  # this branch: osx-64 only, iterating on ccache
     tags: ["v*"]
   pull_request:
 
@@ -12,9 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, platform: linux-64, target: x86_64-unknown-linux-musl }
-          - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-musl }
-          - { os: macos-15, platform: osx-arm64, target: aarch64-apple-darwin }
+          # This branch builds ONLY osx-64: the goal is to make it fit the
+          # 6 h ceiling via a warm ccache without burning the other runners.
           - { os: macos-15-intel, platform: osx-64, target: x86_64-apple-darwin }
     runs-on: ${{ matrix.os }}
     # 360 is the GitHub-hosted maximum. This build uses a large fraction of it:
@@ -51,7 +50,18 @@ jobs:
         # scripts' long options ("getopt: illegal option -- n"), and there is
         # no GNU getopt on conda-forge for macOS.
         if: runner.os == 'macOS'
-        run: brew install gnu-getopt coreutils
+        run: brew install gnu-getopt coreutils ccache
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.platform }}-${{ github.run_id }}
+          restore-keys: ccache-${{ matrix.platform }}-
+      - name: Configure ccache
+        run: |
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+          ccache --max-size=5G || true
+          ccache --zero-stats || true
       - name: Install rattler-build
         run: |
           sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.target }}" \
@@ -59,9 +69,22 @@ jobs:
           sudo chmod +x /usr/local/bin/rattler-build
           rattler-build --version
       - name: Build package
+        # Below the job's 360 so a too-slow build fails the step instead of
+        # cancelling the job — the ccache save below then still runs and the
+        # next attempt starts warmer.
+        timeout-minutes: 330
         run: |
           set -o pipefail
           rattler-build build --recipe recipe/recipe.yaml --output-dir output 2>&1 | tee build.log
+      - name: ccache stats and save
+        if: always()
+        run: ccache --show-stats || true
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.platform }}-${{ github.run_id }}
       - name: Post build log as commit comment
         if: failure()
         env:
