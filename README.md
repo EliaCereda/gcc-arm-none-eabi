@@ -52,6 +52,11 @@ builds the source download URL. Recipe-only respins bump `build.number`.
   Cortex-A bare-metal support, open an issue.
 - **newlib and newlib-nano**, so both `--specs=nano.specs` and the full newlib
   are available.
+- **Target libraries stripped of heavy debug sections**, exactly as Arm's own
+  releases are (their `strip_lib` packaging step): `.debug_frame` is kept so
+  stack unwinding through libc/libstdc++ works, but source-level stepping into
+  the libraries is not available. This is what keeps the packages ~4x smaller
+  than a full-DWARF build.
 - **GDB without Python support.** Linking conda's Python would add a runtime
   dependency and recreate the portability problem that sank the earlier
   conda-forge submission; the host binaries here depend on glibc alone. This

@@ -139,6 +139,21 @@ export nano_installdir="${SRC_DIR}/nano_install"
   --config-flags-gcc=--disable-libcc1 \
   --bugurl="https://github.com/EliaCereda/gcc-arm-none-eabi/issues"
 
+# Strip the heavyweight debug sections from the target libraries and objects,
+# exactly as Arm's own releases do (utilities.sh strip_lib, run by the perms
+# stage that only executes with --package): objcopy removes .debug_info and
+# friends but deliberately keeps .debug_frame, which minimal stack unwinding
+# through the libraries needs. This is what makes Arm's tarballs ~200 MB while
+# full-DWARF target libs pushed our packages to 627 MB. Uses the freshly
+# built cross objcopy from the install itself.
+OBJCOPY="$PREFIX/bin/arm-none-eabi-objcopy"
+find "$PREFIX" \( -name '*.a' -o -name '*.o' \) -print0 | while IFS= read -r -d '' f; do
+  "$OBJCOPY" -R .comment -R .note -R .debug_info -R .debug_aranges \
+    -R .debug_pubnames -R .debug_pubtypes -R .debug_abbrev -R .debug_line \
+    -R .debug_str -R .debug_ranges -R .debug_loc -R .debug_rnglists \
+    -R .debug_loclists "$f" || true
+done
+
 # The obj trees, staged host tools and nano staging area total ~20 GB and are
 # dead weight once the toolchain is installed into $PREFIX -- but they are
 # still on disk while rattler-build packages the 2.7 GB install, and the
