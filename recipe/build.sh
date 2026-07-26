@@ -51,6 +51,18 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
       ln -sf "$(command -v ccache)" "${ccache_bin}/${tool}"
     done
     export CCACHE_PATH="${BUILD_PREFIX}/bin:/usr/bin"
+    # The work dir path embeds a fresh timestamp every run, and those
+    # absolute paths appear in the preprocessed output ccache hashes -- every
+    # run would miss on the previous run's cache. base_dir relativizes paths
+    # under it for hashing; hash_dir=false stops -g compiles from mixing the
+    # cwd into the hash; time_macros is safe because we do not care that
+    # __DATE__ in a cached object may be a day stale. compiler_check=content
+    # hashes the compiler binary itself rather than trusting mtime/size,
+    # which matters in CI where compilers are installed fresh each run.
+    export CCACHE_BASEDIR="${SRC_DIR}"
+    export CCACHE_NOHASHDIR=1
+    export CCACHE_SLOPPINESS=time_macros
+    export CCACHE_COMPILERCHECK=content
     export PATH="${ccache_bin}:${PATH}"
   fi
 
