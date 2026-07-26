@@ -38,6 +38,16 @@ source:
 
 build:
   number: 1
+  script:
+    file: build.sh
+    env:
+      # rattler-build sanitizes the environment before running the build
+      # script, so the workflow's CCACHE_DIR never reaches build.sh on its
+      # own (the shim's guard traced as `[[ -n '' ]]` and 5.5 h of building
+      # warmed nothing). env.get() reads rattler-build's own environment at
+      # render time and passes the value through explicitly; the empty
+      # default keeps the shim inert everywhere ccache is not set up.
+      CCACHE_DIR: ${{ env.get("CCACHE_DIR", default="") }}
   prefix_detection:
     # Do NOT rewrite the build prefix inside the ELF binaries: GCC's driver
     # constant-folds strlen() of the compiled-in prefix, so shortening the
