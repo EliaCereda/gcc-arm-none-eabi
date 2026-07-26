@@ -34,6 +34,16 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
             /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
+      - name: Free runner disk space (macOS)
+        # The build ran the runner out of disk 4 h in, during gcc2-nano
+        # ("Fatal error: ... 'No space left on device'"). The image ships
+        # several Xcode versions; only 16.4 (the default) is used.
+        if: runner.os == 'macOS'
+        run: |
+          df -h /System/Volumes/Data
+          sudo rm -rf /Applications/Xcode_1[0-5]*.app /Applications/Xcode_16.[0-3]*.app \
+            ~/Library/Developer/CoreSimulator/Caches || true
+          df -h /System/Volumes/Data
       - name: Install GNU build helpers (macOS)
         # Arm's set_darwin_envvars adds the Homebrew paths for gnu-getopt and
         # the g-prefixed coreutils (greadlink, gpr) to PATH by itself; the
