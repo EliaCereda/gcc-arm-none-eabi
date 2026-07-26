@@ -1,9 +1,28 @@
-# Build with conda-forge's compilers and sysroot so the package is built the
-# same way as the rest of the conda ecosystem. gcc 13 is closest to the
-# distro compilers this toolchain was proven to build with; sysroot 2.28
-# sets the __glibc >=2.28 floor (== Pixi's default solve baseline, so
-# consumers need no [system-requirements] override).
-c_compiler_version: ["13"]
-cxx_compiler_version: ["13"]
-c_stdlib: ["sysroot"]
-c_stdlib_version: ["2.28"]
+# Build with conda-forge's compilers and standard library so the package is
+# built the same way as the rest of the conda ecosystem. On Linux gcc 13 is
+# closest to the distro compilers Arm builds this toolchain with, and the
+# sysroot sets the __glibc >=2.28 floor (== Pixi's default solve baseline, so
+# consumers need no [system-requirements] override). On macOS the same
+# stdlib() mechanism selects the deployment target instead. clang is pinned
+# to 18 to match the version proven out in the gap-riscv-gnu-toolchain
+# recipe (clang >= 19 hardened diagnostics that older GNU sources trip).
+c_compiler_version:
+  - if: linux
+    then: "13"
+  - if: osx
+    then: "18"
+cxx_compiler_version:
+  - if: linux
+    then: "13"
+  - if: osx
+    then: "18"
+c_stdlib:
+  - if: linux
+    then: sysroot
+  - if: osx
+    then: macosx_deployment_target
+c_stdlib_version:
+  - if: linux
+    then: "2.28"
+  - if: osx
+    then: "11.0"

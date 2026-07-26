@@ -2,7 +2,7 @@
 name = "gcc-arm-none-eabi"
 description = "Recipe repo for the Arm GNU Toolchain (arm-none-eabi) conda package"
 channels = ["conda-forge"]
-platforms = ["linux-64", "linux-aarch64"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64"]
 
 [dependencies]
 rattler-build = ">=0.40"

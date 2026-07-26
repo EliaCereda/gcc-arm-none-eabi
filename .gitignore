@@ -1,5 +1,7 @@
 output/
-.pixi/
+# pixi environments
+.pixi/*
+!.pixi/config.toml
 *.conda
 .DS_Store
 PLAN.md

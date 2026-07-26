@@ -37,7 +37,7 @@ source:
     target_directory: src/zstd
 
 build:
-  number: 0
+  number: 1
   prefix_detection:
     # Do NOT rewrite the build prefix inside the ELF binaries: GCC's driver
     # constant-folds strlen() of the compiled-in prefix, so shortening the
@@ -59,8 +59,23 @@ requirements:
     - gawk
     - sed
     - bison
+    # bison shells out to GNU m4 when grammars are regenerated at build time;
+    # without it in the env, macOS falls back to Xcode's BSD gm4
+    - m4
     - flex
+    # Real makeinfo everywhere: Arm's git snapshot ships no prebuilt .info
+    # files, so binutils genuinely builds its docs (deleted from the package
+    # afterwards). Stubbing MAKEINFO=true does not work — configure probes
+    # `$MAKEINFO --version`, rejects the silent stub, and substitutes the
+    # `missing` script, which exits 127 at doc/bfd.info.
     - texinfo
+    # The build scripts use greadlink on Darwin (set_darwin_envvars).
+    - if: osx
+      then: coreutils
+    # Modern config.sub/config.guess for the snapshot's 2018-era prerequisite
+    # libraries, whose bundled copies predate the arm64-apple triple.
+    - if: osx
+      then: gnuconfig
     - gperf
     - diffutils
     - bc
@@ -74,6 +89,15 @@ requirements:
     # none is found, and any conda .so dependency would become a NEEDED entry
     # that cannot be resolved at runtime (binary prefix relocation is off, so
     # baked rpaths are dead). Host binaries must depend on glibc only.
+  # The host binaries link libstdc++/libgcc statically (see build.sh), so the
+  # compilers' run exports are not real runtime requirements — only the
+  # sysroot's __glibc export is. On macOS the binaries link the system
+  # libc++, not conda's libcxx, so clangxx's export does not apply either.
+  ignore_run_exports:
+    by_name:
+      - libstdcxx
+      - libgcc
+      - libcxx
 
 tests:
   - script:

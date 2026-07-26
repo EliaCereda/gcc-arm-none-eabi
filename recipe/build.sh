@@ -10,9 +10,48 @@ export ac_cv_search_tgetent=no ac_cv_search_waddstr=no \
        ac_cv_header_curses_h=no ac_cv_header_ncurses_h=no \
        ac_cv_header_ncurses_ncurses_h=no ac_cv_header_ncurses_curses_h=no
 
-# Host tools must depend on glibc only. Append to the conda activation's
-# LDFLAGS rather than replacing them.
-export LDFLAGS="${LDFLAGS:-} -static-libstdc++ -static-libgcc"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # macOS links the system libc++/libSystem, which is always present -- no
+  # static-linking flags needed for host portability. (Docs are built with
+  # conda's texinfo on every platform; a MAKEINFO=true stub does not work,
+  # because configure probes `$MAKEINFO --version` and substitutes the
+  # `missing` script for anything that fails it.)
+
+  # The prerequisite libraries in Arm's snapshot bundle 2018-era
+  # config.sub/config.guess that predate the arm64-apple triple, so mpfr's
+  # configure aborts with "config.sub arm64-apple-darwin20.0.0 failed".
+  # Refresh every copy from conda's gnuconfig. rm first: some trees ship
+  # them read-only, and cp alone would fail on the second run.
+  find src -name config.sub -o -name config.guess | while read -r f; do
+    rm -f "$f"
+    cp "${BUILD_PREFIX}/share/gnuconfig/$(basename "$f")" "$f"
+  done
+
+  # The zlib bundled with the binutils and gcc trees #defines fdopen to NULL
+  # on macOS (a pre-OS-X workaround, removed in later upstream zlib), which
+  # breaks the fdopen declaration in the modern SDK's _stdio.h ("expected
+  # ')'"). Drop it, as the gap-riscv-gnu-toolchain recipe does.
+  find src -path '*/zlib/zutil.h' -exec sed -i '/define fdopen(fd,mode) NULL/d' {} +
+
+  # bison regenerates binutils' windres grammars (defparse.y, rcparse.y) and
+  # searches for its m4 by the name "gm4" first, which on the runner resolves
+  # to Xcode's BSD gm4 ("unrecognized option --gnu", SIGPIPE, Error 141).
+  # Pin it to conda's GNU m4 explicitly; bison honours $M4 over any search.
+  export M4="${BUILD_PREFIX}/bin/m4"
+
+  # libtool's nm search settles on "nm -B", but its symbol-parse probe then
+  # fails on that output ("checking command to parse ... nm -B output ...
+  # failed" in the log, versus "... nm output ... ok" without the flag),
+  # leaving an empty global_symbol_pipe. lto-plugin's libtool then emits a
+  # pipeline with a blank stage ("nm -B ... | | sed ...") and dies with a
+  # syntax error at liblto_plugin.la. Preset the search's cache variable to
+  # conda's nm without -B; the probe is proven to parse that.
+  export lt_cv_path_NM="${NM:-nm}"
+else
+  # Host tools must depend on glibc only. Append to the conda activation's
+  # LDFLAGS rather than replacing them.
+  export LDFLAGS="${LDFLAGS:-} -static-libstdc++ -static-libgcc"
+fi
 
 # The conda compiler activation exports CPP pointing at the *host*
 # preprocessor. GCC's BASE_TARGET_EXPORTS (which target libraries such as
@@ -81,6 +120,10 @@ export nano_installdir="${SRC_DIR}/nano_install"
 # --no-package           we want the install tree, not distribution tarballs
 # --with-multilib-list   rmprofile only (Cortex-M/R). aprofile roughly doubles
 #                        an already multi-hour build; see README.
+# --disable-libcc1       gdb's compile-anything plugin — useless for an
+#                        embedded cross toolchain, and a host plugin .so has
+#                        no place in a package whose binaries must be
+#                        self-contained
 # no --tag               Arm asks that their release branding not be reused
 "${SRC_DIR}/src/gnu-devtools-for-arm/build-baremetal-toolchain.sh" \
   --target=arm-none-eabi \
@@ -93,6 +136,7 @@ export nano_installdir="${SRC_DIR}/nano_install"
   --disable-qemu \
   --no-check-gdb \
   --config-flags-gcc=--with-multilib-list=rmprofile \
+  --config-flags-gcc=--disable-libcc1 \
   --bugurl="https://github.com/EliaCereda/gcc-arm-none-eabi/issues"
 
 # Strip host binaries before packaging. Target libraries (newlib .a) must keep

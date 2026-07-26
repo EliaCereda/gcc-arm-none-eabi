@@ -12,8 +12,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, platform: linux-64, arch: x86_64 }
-          - { os: ubuntu-24.04-arm, platform: linux-aarch64, arch: aarch64 }
+          - { os: ubuntu-24.04, platform: linux-64, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-musl }
+          - { os: macos-15, platform: osx-arm64, target: aarch64-apple-darwin }
+          # osx-64 is absent: macos-15-intel cannot finish the build inside
+          # the 6 h hosted-runner ceiling (timed out twice, once with ample
+          # disk). A ccache-based attempt lives on the osx-64-ccache branch.
     runs-on: ${{ matrix.os }}
     # 360 is the GitHub-hosted maximum. This build uses a large fraction of it:
     # the toolchain is rebuilt once per multilib. See README if it starts to
@@ -25,15 +29,34 @@ jobs:
       - uses: actions/checkout@v4
       - name: Free runner disk space
         # The toolchain build needs ~15 GB (per-multilib obj trees + a 2.7 GB
-        # install); hosted runners have too little free space with the
-        # preinstalled software present.
+        # install); hosted Linux runners have too little free space with the
+        # preinstalled software present. macOS runners have plenty.
+        if: runner.os == 'Linux'
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
             /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
+      - name: Free runner disk space (macOS)
+        # The build ran the runner out of disk 4 h in, during gcc2-nano
+        # ("Fatal error: ... 'No space left on device'"). The image ships
+        # several Xcode versions; only 16.4 (the default) is used.
+        if: runner.os == 'macOS'
+        run: |
+          df -h /System/Volumes/Data
+          sudo rm -rf /Applications/Xcode_1[0-5]*.app /Applications/Xcode_16.[0-3]*.app \
+            ~/Library/Developer/CoreSimulator/Caches || true
+          df -h /System/Volumes/Data
+      - name: Install GNU build helpers (macOS)
+        # Arm's set_darwin_envvars adds the Homebrew paths for gnu-getopt and
+        # the g-prefixed coreutils (greadlink, gpr) to PATH by itself; the
+        # tools just have to be installed. BSD getopt cannot parse the
+        # scripts' long options ("getopt: illegal option -- n"), and there is
+        # no GNU getopt on conda-forge for macOS.
+        if: runner.os == 'macOS'
+        run: brew install gnu-getopt coreutils
       - name: Install rattler-build
         run: |
-          sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.arch }}-unknown-linux-musl" \
+          sudo curl -fsSL "https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-${{ matrix.target }}" \
             -o /usr/local/bin/rattler-build
           sudo chmod +x /usr/local/bin/rattler-build
           rattler-build --version
