@@ -3,9 +3,12 @@
 Builds the [Arm GNU Toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain)
 (`arm-none-eabi` GCC, binutils, newlib, newlib-nano and GDB for bare-metal Arm
 targets) as a relocatable conda package with [rattler-build](https://rattler.build),
-for `linux-64`, `linux-aarch64` and `osx-arm64`. (`osx-64` does not fit the
-6-hour GitHub-hosted runner ceiling; an attempt to close the gap with ccache
-lives on the `osx-64-ccache` branch.)
+for `linux-64`, `linux-aarch64` and `osx-arm64`. `osx-64` is not built: the
+Intel macOS runners cannot finish inside the 6-hour GitHub-hosted ceiling, and
+even a warm-ccache approach only reaches the host-side compiles (the hours of
+per-multilib target-library builds run through the freshly built cross
+compiler and cannot be cached). The abandoned experiment is archived on the
+`osx-64-ccache` branch should larger runners ever make it worth reviving.
 
 The toolchain is compiled **from source** — from Arm's official source snapshot,
 using Arm's own build scripts
